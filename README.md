@@ -1,3 +1,9 @@
+> **⚠️ EDUCATIONAL USE ONLY — AUTHORIZED TESTING ONLY.**
+> This project exists for education, research, and **defense of systems you own
+> or hold explicit written authorization to assess**. Unauthorized use is
+> prohibited and may be illegal. Read [ETHICS.md](ETHICS.md) and
+> [SCOPE.md](SCOPE.md) before use. Use at your own risk; **AS IS**, no warranty.
+
 # F3 — MCP (Model Context Protocol) Honeypot
 
 A real, standard-library JSON-RPC / streamable-HTTP server that advertises a few
