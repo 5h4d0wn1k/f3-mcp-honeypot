@@ -4,130 +4,64 @@
 > prohibited and may be illegal. Read [ETHICS.md](ETHICS.md) and
 > [SCOPE.md](SCOPE.md) before use. Use at your own risk; **AS IS**, no warranty.
 
-# F3 — MCP (Model Context Protocol) Honeypot
+# F3 — MCP Honeypot (AI-Agent Decoy & Fingerprinter)
 
-A real, standard-library JSON-RPC / streamable-HTTP server that advertises a few
-**harmlessly infectious** tools to AI agents, logs every tool call, and answers
-with tripwired "trap" payloads an operator can grep for downstream.
+Standard-library JSON-RPC / streamable-HTTP honeypot that advertises harmlessly infectious tools to AI agents, logs every tool call, and answers with tripwired `_trap` payloads an operator can grep downstream.
 
-## Overview
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/5h4d0wn1k/f3-mcp-honeypot.svg)](https://github.com/5h4d0wn1k/f3-mcp-honeypot)
+[![Last commit](https://img.shields.io/github/last-commit/5h4d0wn1k/f3-mcp-honeypot.svg)](https://github.com/5h4d0wn1k/f3-mcp-honeypot)
+[![Issues](https://img.shields.io/github/issues/5h4d0wn1k/f3-mcp-honeypot.svg)](https://github.com/5h4d0wn1k/f3-mcp-honeypot)
 
-- **Real MCP-style transport**: a threaded `localhost` HTTP server speaking
-  JSON-RPC 2.0 (`tools/list`, `tools/call`, `initialize`, `ping`), plus
-  operator-facing `GET /tools` and `GET /logs` endpoints.
-- **Harmless-only tool registry**: `warmup`, `hash_sum`, `read_public_doc` —
-  no network, no shell, no file writes.
-- **Trap payloads**: every successful `tools/call` wraps its (benign) result in
-  a `_trap` marker (`HONEYPOT-TRIPWIRE:<tool>`). If an attacker agent later
-  echoes that result into a downstream context, the operator can detect it.
-- **Call logging**: every call is persisted with client IP:port, tool, params,
-  and outcome, in operator order.
-- **Demo attacker agent**: a local fake "attacker agent" that enumerates tools,
-  drives them all, snags the traps, and confirms the operator log recorded every
-  call. Fully offline (loopback only).
-- **Zero dependencies**: Python standard library only.
+## Why
 
-### The loop, end-to-end
+AI agents are the new attack surface — and the new tool-supply-chain risk. F3 builds the defensive instrument to study them: a real MCP-style HTTP server speaking JSON-RPC 2.0 (`tools/list`, `tools/call`, `initialize`, `ping`) that lures automated clients into calling benign tools, logs every call with client IP:port, params and outcome, and marks every successful answer with a `HONEYPOT-TRIPWIRE:<tool>` tag. If an attacker agent later echoes a tripwired result into downstream context, the operator can spot it. Nothing harmful runs — the tool registry is `warmup`, `hash_sum`, `read_public_doc` — and the entire demo operates on loopback.
 
-```
-attacker agent --POST / tools/list--> honeypot
-attacker agent --POST / tools/call--> honeypot -> executes benign tool -> _trap wrapper
-honeypot  --/logs-----------------> operator sees every call recorded
-```
+## Features
 
-## CLI
+- **Real MCP-style transport** — threaded localhost HTTP server with JSON-RPC 2.0 methods plus operator-facing `GET /tools` and `GET /logs`
+- **Harmless-only tool registry** — `warmup`, `hash_sum`, `read_public_doc`; no network, no shell, no file writes
+- **Trap payloads** — every successful `tools/call` wraps its result in a `_trap` tripwire marker
+- **Full call logging** — client IP:port, tool, params and outcome, in operator order
+- **Demo attacker agent** — drives all tools, snags the traps, confirms the operator log
+- **Zero dependencies** — Python standard library only, loopback only
+
+## Quickstart
 
 ```bash
-python3 firmware/mcp_honeypot.py --help
-python3 firmware/mcp_honeypot.py                     # run the demo loop (port 0)
+git clone https://github.com/5h4d0wn1k/f3-mcp-honeypot.git && cd f3-mcp-honeypot
+
+# Run the demo loop (port 0 = ephemeral; writes a report, exit 0)
+python3 firmware/mcp_honeypot.py
+
+# Stand the server up for inspection
+python3 firmware/mcp_honeypot.py --serve --port 9000
+
+# Custom report path
 python3 firmware/mcp_honeypot.py --report reports/report.json
-python3 firmware/mcp_honeypot.py --serve --port 9000 # stand up the server
+
+# Unit tests
+python3 -m unittest discover -s tests
 ```
 
-Config lives in `config.json` (`host`, `port`; `port: 0` = ephemeral). Reports
-go to `reports/` (gitignored).
+Config lives in `config.json` (`host`, `port`); reports go to `reports/` (gitignored).
 
-## Tests
+## Project structure
 
-```bash
-python3 -m unittest discover -s tests -v
-```
+- `firmware/mcp_honeypot.py` — JSON-RPC server, tool registry, trap wrapping, demo attacker agent, CLI
+- `config.json` — server defaults (host, port); `tests/` — unit tests over logging, traps and error paths
 
-## IMPORTANT: Read before use.
+## Documentation
 
-This tool is provided **exclusively** for authorized security research, academic
-study, and defensive hardening on infrastructure you control. Use without
-explicit written authorization is illegal and unethical.
+- [ETHICS.md](ETHICS.md) — educational purpose and authorized use only
+- [SCOPE.md](SCOPE.md) — authorized-testing scope checklist
+- [SECURITY.md](SECURITY.md) — vulnerability reporting
+- [CONTRIBUTING.md](CONTRIBUTING.md) — safe contribution guidelines
 
-### Authorization Requirements
+## Contributing
 
-Run the honeypot only on hosts you own or are explicitly authorized to operate.
-Attracting AI agents or automated scanners onto hosts you do not control, or
-serving trap content to third parties without authorization, may constitute
-unauthorized interference with their systems.
-
-### Legal Framework
-
-Unauthorized access to or interference with computer systems is governed by the
-**Computer Fraud and Abuse Act (CFAA)** (18 U.S.C. § 1030), the **EU Directive
-on Attacks Against Information Systems** (2013/40/EU), and equivalent
-legislation in other jurisdictions. Penalties include imprisonment and
-significant fines. Intercepting or logging automated clients on third-party
-networks may also implicate wiretap and data-protection statutes.
-
-### Acceptable Use
-
-- Operating the honeypot on your own loopback or lab infrastructure to observe
-  AI-agent and scanner behavior
-- Authorized red-team/purple-team exercises within a written scope
-- Academic research on MCP tool-supply-chain abuse and agent instrumentation
-- Security education, CTFs, and controlled labs
-
-### Prohibited Use
-
-- Deploying the honeypot against hosts you do not own or lack authorization for
-- Serving trap payloads to third parties to deceive or entrap them
-- Using logged calls to harvest credentials or personal data without a lawful basis
-- Any use that violates applicable law or terms of service
-
-### No Warranty
-
-This software is provided "as is" without warranty of any kind. The authors
-assume no liability for damages arising from use or misuse of this tool.
-
-### Responsible Disclosure
-
-If your honeypot exposes abuse of third-party MCP tool infrastructure, preserve
-logs and report privately to the affected vendor or platform's abuse team rather
-than publicly. Allow reasonable time for remediation.
-
-## Live Lab Test Plan
-
-1. **Demo run** — `python3 firmware/mcp_honeypot.py` prints the banner and exits `0`.
-2. **Real transport** — the demo performs *actual* HTTP round-trips on loopback:
-   `tools/list`, three `tools/call`, and `/logs`.
-3. **Call logging** — unit test `test_call_logs_and_traps` asserts every call is
-   recorded with client, tool, params, and outcome.
-4. **Trap integrity** — `test_trap_marker_present` asserts the `_trap` tripwire
-   is present in every successful answer.
-5. **Robust error paths** — unknown tool → JSON-RPC `-32601`; bad params →
-   `-32602` (asserted in `test_unknown_tool_is_an_error`).
-6. **Operator log** — the demo confirms `recorded == number of tools/call` events.
-7. **Offline guarantee** — loopback only, stdlib only, no third-party packages.
-
-## Metrics
-
-| Metric | Definition |
-|--------|-----------|
-| Advertised tools | size of the hypothetical tool registry |
-| Calls logged | tool-call records persisted in operator order |
-| Trap snag rate | successful calls that carried a tripwired result |
-| Error paths | JSON-RPC errors returned for unknown methods / bad params |
-| Round-trip count | real HTTP requests performed on loopback in the demo |
-
-Verified offline: 3 tools advertised, 3/3 calls logged, 3/3 traps delivered,
-0 leak beyond loopback.
+New decoy tools, trap formats and logging features are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md); the honeypot runs only on hosts you own or are authorized to operate.
 
 ## License
 
-MIT License
+MIT — see [LICENSE](LICENSE). Provided **AS IS**, without warranty, for education and authorized AI-agent security research only.
